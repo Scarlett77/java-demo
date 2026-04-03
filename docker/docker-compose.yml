@@ -1,0 +1,143 @@
+version: "3.8"
+
+# Java 全栈演示项目 Docker Compose 部署文件
+# 包含：MySQL、Nacos、Redis、RocketMQ、Seata Server
+#
+# 使用方式：
+#   docker compose up -d           # 启动所有中间件
+#   docker compose down            # 停止并删除容器
+#   docker compose logs -f nacos   # 查看 Nacos 日志
+#
+# 访问地址：
+#   Nacos  控制台: http://localhost:8848/nacos  (nacos/nacos)
+#   Sentinel 控制台: http://localhost:8858      (sentinel/sentinel)
+#   RocketMQ 控制台: http://localhost:9876
+#   H2  控制台: http://localhost:8080/h2-console
+
+services:
+
+  # MySQL 8.0
+  mysql:
+    image: mysql:8.0
+    container_name: java-demo-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root123
+      MYSQL_DATABASE: java_demo
+      TZ: Asia/Shanghai
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init-sql:/docker-entrypoint-initdb.d  # 初始化脚本目录
+    command: --default-authentication-plugin=mysql_native_password
+             --character-set-server=utf8mb4
+             --collation-server=utf8mb4_unicode_ci
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis 7 (缓存 + Sentinel 限流计数)
+  redis:
+    image: redis:7-alpine
+    container_name: java-demo-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass redis123
+    volumes:
+      - redis_data:/data
+
+  # Nacos 2.x (服务注册/发现 + 配置中心)
+  # 单机模式，生产环境需集群部署
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: java-demo-nacos
+    ports:
+      - "8848:8848"
+      - "9848:9848"  # gRPC 端口（Nacos 2.x 新增）
+    environment:
+      MODE: standalone          # 单机模式
+      PREFER_HOST_MODE: hostname
+      # 持久化到 MySQL（生产建议开启）
+      # SPRING_DATASOURCE_PLATFORM: mysql
+      # MYSQL_SERVICE_HOST: mysql
+      # MYSQL_SERVICE_DB_NAME: nacos
+      # MYSQL_SERVICE_USER: root
+      # MYSQL_SERVICE_PASSWORD: root123
+    volumes:
+      - nacos_data:/home/nacos/data
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # RocketMQ NameServer
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.1.4
+    container_name: java-demo-rmq-namesrv
+    ports:
+      - "9876:9876"
+    command: sh mqnamesrv
+    volumes:
+      - rmq_namesrv_logs:/home/rocketmq/logs
+
+  # RocketMQ Broker
+  rocketmq-broker:
+    image: apache/rocketmq:5.1.4
+    container_name: java-demo-rmq-broker
+    ports:
+      - "10909:10909"
+      - "10911:10911"
+    environment:
+      NAMESRV_ADDR: rocketmq-namesrv:9876
+    command: sh mqbroker -n rocketmq-namesrv:9876 autoCreateTopicEnable=true
+    volumes:
+      - rmq_broker_logs:/home/rocketmq/logs
+      - rmq_broker_store:/home/rocketmq/store
+    depends_on:
+      - rocketmq-namesrv
+
+  # Seata Server（分布式事务协调器）
+  seata-server:
+    image: seataio/seata-server:2.0.0
+    container_name: java-demo-seata
+    ports:
+      - "8091:8091"
+      - "7091:7091"  # Seata 控制台
+    environment:
+      SEATA_IP: 127.0.0.1   # 对外暴露的 IP（Docker 环境下需要设置）
+      SEATA_PORT: 8091
+      # 注册到 Nacos
+      STORE_MODE: db         # 事务信息持久化到数据库
+    depends_on:
+      - nacos
+      - mysql
+
+  # Spring Framework 演示应用
+  spring-demo-app:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: java-demo-app
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/java_demo?characterEncoding=utf8&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root123
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+
+volumes:
+  mysql_data:
+  redis_data:
+  nacos_data:
+  rmq_namesrv_logs:
+  rmq_broker_logs:
+  rmq_broker_store:
