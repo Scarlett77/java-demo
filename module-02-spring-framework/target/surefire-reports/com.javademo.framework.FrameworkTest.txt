@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: com.javademo.framework.FrameworkTest
--------------------------------------------------------------------------------
-Tests run: 6, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.626 s -- in com.javademo.framework.FrameworkTest
