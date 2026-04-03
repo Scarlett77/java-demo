@@ -59,8 +59,11 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // 禁用 CSRF（REST API 无状态，不需要 CSRF 保护）
-                // 生产环境：如有表单提交，需启用 CSRF
+                // CSRF 说明：本应用为无状态 REST API，使用 Bearer JWT 认证（非 Cookie/Session）。
+                // CSRF 攻击利用浏览器自动携带 Cookie 的特性，而本应用认证依赖 Authorization 请求头，
+                // 浏览器不会自动附带该 Header，因此 CSRF 攻击无法生效。
+                // 在此场景下禁用 CSRF 保护是安全且符合最佳实践的。
+                // 如果应用同时提供传统表单（Cookie 认证），则应启用 CSRF 并配置豁免路径。
                 .csrf(AbstractHttpConfigurer::disable)
 
                 // 无状态会话（不创建 HttpSession，每次请求从 JWT 中还原认证状态）
