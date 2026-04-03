@@ -1,0 +1,4 @@
+com/javademo/microservices/gateway/GatewayConfigReference.class
+com/javademo/microservices/mq/OrderMessageService.class
+com/javademo/microservices/mq/OrderMessageService$OrderCreatedEvent.class
+com/javademo/microservices/seata/OrderSeataService.class

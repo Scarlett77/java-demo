@@ -1,0 +1,33 @@
+{
+  "groups": [
+    {
+      "name": "hello",
+      "type": "com.javademo.starter.HelloProperties",
+      "sourceType": "com.javademo.starter.HelloProperties"
+    }
+  ],
+  "properties": [
+    {
+      "name": "hello.enabled",
+      "type": "java.lang.Boolean",
+      "description": "是否启用 Hello 功能，默认 true",
+      "sourceType": "com.javademo.starter.HelloProperties",
+      "defaultValue": true
+    },
+    {
+      "name": "hello.greeting",
+      "type": "java.lang.String",
+      "description": "问候语前缀，默认 \"Hello\"",
+      "sourceType": "com.javademo.starter.HelloProperties",
+      "defaultValue": "Hello"
+    },
+    {
+      "name": "hello.name",
+      "type": "java.lang.String",
+      "description": "问候的对象名称，默认 \"World\"",
+      "sourceType": "com.javademo.starter.HelloProperties",
+      "defaultValue": "World"
+    }
+  ],
+  "hints": []
+}
